@@ -1,39 +1,63 @@
-import math
+from collections import namedtuple
 
-altar_x = 0	#Global coords
-altar_y = 0	# ' ' 
-altar_z = 0	# ' '
+import logging
+logging.basicConfig(level=logging.DEBUG, filename="infusion-helper.log",format="%(asctime)s - %(levelname)s: %(message)s", datefmt='%I:%M:%S %p', filemode='w')
+logging.debug("Log Start")
 
-def test():
-  for x in xrange(-2,3):
-    for z in xrange(-2,3):
-      for y in xrange(-5,11):
-	print x,-y,z
+from WorldChunk import *
 
-def getSurroundings():
-  stuff = []
+#ID Constants
+IDPedestal = 1
+IDAspectSource = 2
+IDSkull = 3
+IDCandle = 4
+IDCrystal = 5
+#/ID Constants
+
+#Re-written function to get surroundings.
+#Attempting to use numpy instead of manual iteration
+def generateLists(worldChunk):
+  if worldChunk is None:
+    logging.critical("generateLists called with nil worldChunk")
+  if not isinstance(worldChunk, WorldChunk):
+    logging.critical("generateLists called with something other than a WorldChunk")
+    
+  x,y = (numpy.where( worldChunk == IDPedestal) )
+  allPedestals = zip(x,y)
+  #TODO finish writing this
+  return
+
+#pedestals, sources, stuff = getSurroundings()
+def getSurroundings(world):
   
+  if world is None:
+    logging.critical("getSurroundings: world is None?!")
+  if not isinstance(world, WorldChunk):
+    logging.critical("getSurroundings: world isn't a WorldChunk?!")
+  stuff = []
   sources = []
   pedestals = []
   
   for x_offset in xrange(-12,13): #-12, -11, ... , 11, 12
     for z_offset in xrange(-12,13): # ' ' '
       skip  = False
-      for y_offset in xrange(-5,11): #-5, -4 .. 10, 11
+      for y_offset in xrange(-5,11): #-5, -4 .. 9, 10
 	if ((x_offset != 0) and (z_offset != 0)):
-	  x = altar_x + x_offset
-	  y = altar_y - y_offset
-	  z = altar_z + z_offset
-	  block = getBlockAtWorldCoords(x,y,z)
-	  if ((not skip) and (y_offset > 0) and (abs(x_offset) <= 8) \
-	     and (abs(z_offset) <= 8) and (isinstance(block, TCPedestal))):
-	    pedestals.append( WorldCoord(x,y,z) )
-	    skip = True
-	  elif (isinstance(block, AspectSource)):
-	    sources.append( WorldCoord(x,y,z) )
-	  else:
-	    if (isinstance(block, TCObject)):
-		stuff.append( WorldCoord(x,y,z) )
+	  block = world.blockAt(x_offset,-y_offset,z_offset)
+	  if (not skip):
+	    if (y_offset > 0):
+	      if (abs(x_offset) <= 8 and abs(z_offset) <= 8):
+		if block.isPedestal():
+		  pedestals.append( block.coords() )
+		  logging.debug("[!] Pedestal added @ %d,%d,%d", block.x,block.y,block.z)
+		  skip = True
+	  elif block.isAspectSource():
+	    sources.append( block.coords())
+	    logging.debug("[!] AspectSource added @ %d,%d,%d", block.x,block.y,block.z)
+	  elif block.isParaphernalia():
+	    stuff.append( block.coords())
+	    logging.debug("[!] Paraphenalia added @ %d,%d,%d", block.x,block.y,block.z)
+	  
   return pedestals, sources, stuff
 
 def getSymmetry(pedestals, sources, stuff):
@@ -78,55 +102,16 @@ def getSymmetry(pedestals, sources, stuff):
     if (isinstance(block, TCObject)):
       symmetry -= 0.2
   
-  return symmetry
-
-  
-def getBlockAtWorldCoords(x,y,z):
-  return TCCandle()
-
-
-
-class TCPedestal:
-  hasItem = False
-  def __init__(self,hasItem):
-    self.hasItem = hasItem
-    
-
-class TCObject: #All the stuff that gets picked up that isn't a pedestal
-  instability = 0
-
-class TCCandle(TCObject): #Candles
-  def __init__(self):
-    instability = 1
-class TCCrystal(TCObject): #Crystal Clusters
-  def __init__(self):
-    instability = 1
-class TCAiry(TCObject): #Aura Node (blockID 2416)
-  def __init__(self):
-    instability = 1
-class TCHead(TCObject): #field_82512_cj.field_71990_ca in source, pretty sure it's a skull
-  def __init__(self):
-    instability = 1
-
-class AspectSource:
-  eType = ''
-  q = 0
-  def __init__(self, eType, q):
-   self.eType = eType
-   self.q = q
-
-class WorldCoord:
-  x=0
-  y=0
-  z=0
-  def __init__(self,x,y,z):
-    self.x = x
-    self.y = y
-    self.z = z
-    
+  return symmetry    
     
 if __name__ == "__main__":
-  pedestals,sources,stuff = getSurroundings()
-  symmetry = getSymmetry(pedestals, sources, stuff)
   
-  print symmetry
+  print "Testing only, don't expect this to work."
+  
+  #dummy world for now, all block IDs are zero.
+  world = WorldChunk(None)
+  
+  #Create pedestal that should be detected
+  world.setBlock(-5,-4,-5,IDPedestal)
+  
+  pedestals,sources,stuff = getSurroundings(world)  
